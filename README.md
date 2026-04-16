@@ -4,18 +4,18 @@ Lanceur d'applications et de sites web entièrement configurable depuis le termi
 
 Définissez des **profils** contenant des apps et des URLs, puis lancez-les en une seule commande.
 
-![demo](https://raw.githubusercontent.com/ErwannJardillet/autobash/main/demo.gif)
+![demo](https://raw.githubusercontent.com/ErwannJardillet/AutoBash/main/demo.gif)
 
 ## Installation rapide
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ErwannJardillet/autobash/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ErwannJardillet/AutoBash/main/install.sh | bash
 ```
 
 Ou manuellement :
 
 ```bash
-git clone https://github.com/ErwannJardillet/autobash.git
+git clone https://github.com/ErwannJardillet/AutoBash.git
 cd autobash
 ./install.sh
 ```

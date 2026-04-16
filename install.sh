@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # install.sh — Installateur d'autobash
 # Usage : ./install.sh
-#         curl -fsSL https://raw.githubusercontent.com/ErwannJardillet/autobash/main/install.sh | bash
+#         curl -fsSL https://raw.githubusercontent.com/ErwannJardillet/AutoBash/main/install.sh | bash
 
 set -euo pipefail
 
-REPO="https://raw.githubusercontent.com/ErwannJardillet/autobash/main"
+REPO="https://raw.githubusercontent.com/ErwannJardillet/AutoBash/main"
 INSTALL_DIR="${HOME}/.local/bin"
 SCRIPT_NAME="autobash"
 
