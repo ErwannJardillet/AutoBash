@@ -7,7 +7,7 @@
 set -euo pipefail
 shopt -s nullglob
 
-VERSION="1.0.0"
+VERSION="1.0.2"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/autobash"
 PROFILES_DIR="$CONFIG_DIR/profiles"
 SETTINGS_FILE="$CONFIG_DIR/settings.conf"
@@ -26,7 +26,7 @@ NC='\033[0m'
 
 # ─── Helpers UI ───────────────────────────────────────────────────────────────
 header() {
-  echo ""
+  printf '\033[2J\033[H'
   echo -e "${BOLD}${C}┌──────────────────────────────────────────┐${NC}"
   echo -e "${BOLD}${C}│${NC}  ${BOLD}${W}autobash${NC} ${DIM}v${VERSION}${NC}$(printf '%*s' $((30 - ${#VERSION})) '')${BOLD}${C}│${NC}"
   echo -e "${BOLD}${C}└──────────────────────────────────────────┘${NC}"
@@ -562,6 +562,11 @@ show_help() {
   echo ""
   echo -e "  ${BOLD}Config :${NC}  ${DIM}${CONFIG_DIR}${NC}"
   echo ""
+  separator
+  echo -e "  ${BOLD}${Y}[0]${NC} ${DIM}Retour${NC}"
+  echo ""
+  prompt "Choix :"
+  read -r _
 }
 
 list_all_profiles() {

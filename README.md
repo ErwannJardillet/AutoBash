@@ -1,4 +1,4 @@
-# autobash
+# autobash v1.0.2
 
 Lanceur d'applications et de sites web entièrement configurable depuis le terminal.
 
@@ -23,10 +23,11 @@ cd autobash
 ## Utilisation
 
 ```
-autobash                  # Menu principal — choisir un profil
+autobash                  # Lance le profil par défaut, ou ouvre le menu de configuration
 autobash <profil>         # Lancer directement un profil (nom ou slug)
+autobash --configure      # Menu de configuration (paramètres, profils, aide)
 autobash --new            # Créer un nouveau profil
-autobash --profiles       # Gérer les profils (ajouter/modifier/supprimer)
+autobash --profiles       # Gérer les profils (créer/modifier)
 autobash --settings       # Paramètres globaux (navigateur, délai, profil par défaut)
 autobash --list           # Lister tous les profils
 autobash --help           # Afficher l'aide
