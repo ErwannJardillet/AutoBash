@@ -467,59 +467,49 @@ EOF
 manage_profiles() {
   while true; do
     header
-    section "Gestion des profils"
+    section "Profils existants"
 
     local profiles=()
     IFS=' ' read -ra profiles <<< "$(list_profiles)"
 
     if [[ ${#profiles[@]} -eq 0 || -z "${profiles[0]}" ]]; then
-      warn "Aucun profil créé."
-      separator
-      menu "Options" "Créer un nouveau profil"
-      case "$REPLY" in
-        1) create_profile ;;
-        0) return ;;
-      esac
-      continue
+      warn "Aucun profil créé pour l'instant."
+    else
+      for p in "${profiles[@]}"; do
+        local n count
+        n=$(get_profile_name "$p")
+        count=$(count_items "$p")
+        echo -e "  ${G}•${NC} ${BOLD}$n${NC} ${DIM}($count élément(s))${NC}"
+      done
     fi
-
-    local i=1
-    for p in "${profiles[@]}"; do
-      local n count
-      n=$(get_profile_name "$p")
-      count=$(count_items "$p")
-      echo -e "  ${BOLD}${Y}[$i]${NC} ${BOLD}$n${NC} ${DIM}($count élément(s))${NC}"
-      i=$(( i + 1 ))
-    done
 
     separator
     menu "Options" \
-      "Éditer un profil" \
       "Créer un nouveau profil" \
-      "Lancer un profil"
+      "Modifier un profil existant"
 
     case "$REPLY" in
-      1)
-        prompt "Numéro du profil à éditer :"
-        read -r pidx
-        if [[ "$pidx" =~ ^[0-9]+$ && $pidx -ge 1 && $pidx -le ${#profiles[@]} ]]; then
-          edit_profile "${profiles[$((pidx-1))]}"
+      1) create_profile ;;
+      2)
+        if [[ ${#profiles[@]} -eq 0 || -z "${profiles[0]}" ]]; then
+          warn "Aucun profil à modifier."
+          sleep 0.8
         else
-          error "Numéro invalide."
-          sleep 0.5
-        fi
-        ;;
-      2) create_profile ;;
-      3)
-        prompt "Numéro du profil à lancer :"
-        read -r pidx
-        if [[ "$pidx" =~ ^[0-9]+$ && $pidx -ge 1 && $pidx -le ${#profiles[@]} ]]; then
-          load_settings
-          launch_profile "${profiles[$((pidx-1))]}"
-          read -rp "  Appuyer sur Entrée pour continuer..."
-        else
-          error "Numéro invalide."
-          sleep 0.5
+          echo ""
+          local j=1
+          for p in "${profiles[@]}"; do
+            echo -e "  ${BOLD}${Y}[$j]${NC} $(get_profile_name "$p") ${DIM}($p)${NC}"
+            j=$(( j + 1 ))
+          done
+          echo ""
+          prompt "Numéro du profil à modifier :"
+          read -r pidx
+          if [[ "$pidx" =~ ^[0-9]+$ && $pidx -ge 1 && $pidx -le ${#profiles[@]} ]]; then
+            edit_profile "${profiles[$((pidx-1))]}"
+          else
+            error "Numéro invalide."
+            sleep 0.5
+          fi
         fi
         ;;
       0) return ;;
@@ -528,48 +518,22 @@ manage_profiles() {
   done
 }
 
-# ─── Menu principal ───────────────────────────────────────────────────────────
-main_menu() {
+# ─── Menu de configuration (point d'entrée principal) ────────────────────────
+config_menu() {
   while true; do
     header
+    menu "Configuration" \
+      "Paramètres" \
+      "Profils" \
+      "Aide"
 
-    local profiles=()
-    IFS=' ' read -ra profiles <<< "$(list_profiles)"
-
-    if [[ ${#profiles[@]} -gt 0 && -n "${profiles[0]}" ]]; then
-      section "Profils disponibles"
-      local i=1
-      for p in "${profiles[@]}"; do
-        local n count
-        n=$(get_profile_name "$p")
-        count=$(count_items "$p")
-        echo -e "  ${BOLD}${G}[$i]${NC} ${BOLD}$n${NC} ${DIM}($count élément(s))${NC}"
-        i=$(( i + 1 ))
-      done
-      separator
-    else
-      warn "Aucun profil. Créez-en un dans les paramètres."
-      separator
-    fi
-
-    local base_options=("Paramètres" "Gérer les profils")
-    menu "Navigation" "${base_options[@]}"
-
-    local profile_count=${#profiles[@]}
-    if [[ -n "${profiles[0]:-}" && "$REPLY" =~ ^[0-9]+$ && "$REPLY" -ge 1 && "$REPLY" -le $profile_count ]]; then
-      load_settings
-      launch_profile "${profiles[$((REPLY-1))]}"
-      read -rp "  Appuyer sur Entrée pour continuer..."
-    else
-      # Les options de menu commencent après les profils
-      local offset=$((profile_count))
-      case "$REPLY" in
-        $((offset+1))) settings_global ;;
-        $((offset+2))) manage_profiles ;;
-        0) echo -e "\n  ${DIM}À bientôt !${NC}\n"; exit 0 ;;
-        *) error "Choix invalide." ; sleep 0.5 ;;
-      esac
-    fi
+    case "$REPLY" in
+      1) settings_global ;;
+      2) manage_profiles ;;
+      3) show_help ;;
+      0) echo -e "\n  ${DIM}À bientôt !${NC}\n"; exit 0 ;;
+      *) error "Choix invalide." ; sleep 0.5 ;;
+    esac
   done
 }
 
@@ -582,6 +546,7 @@ show_help() {
   echo -e "    ${Y}[PROFIL]${NC}         Lance directement le profil (slug ou nom)"
   echo ""
   echo -e "  ${BOLD}Options :${NC}"
+  echo -e "    ${Y}-c, --configure${NC}  Ouvre le menu de configuration"
   echo -e "    ${Y}-s, --settings${NC}   Ouvre les paramètres globaux"
   echo -e "    ${Y}-p, --profiles${NC}   Gestion des profils"
   echo -e "    ${Y}-l, --list${NC}       Liste tous les profils"
@@ -649,16 +614,17 @@ load_settings
 case "${1:-}" in
   -h|--help)    show_help ;;
   -v|--version) echo "autobash v${VERSION}" ;;
+  -c|--configure) config_menu ;;
   -s|--settings) header; settings_global ;;
   -p|--profiles) manage_profiles ;;
   -l|--list)    list_all_profiles ;;
   -n|--new)     header; create_profile ;;
   "")
-    # Profil par défaut défini ?
+    # Profil par défaut défini ? → le lancer, sinon → menu de configuration
     if [[ -n "$DEFAULT_PROFILE" ]] && profile_exists "$DEFAULT_PROFILE"; then
       launch_profile "$DEFAULT_PROFILE"
     else
-      main_menu
+      config_menu
     fi
     ;;
   *)
