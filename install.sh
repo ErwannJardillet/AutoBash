@@ -5,9 +5,10 @@
 
 set -euo pipefail
 
-REPO="https://raw.githubusercontent.com/ErwannJardillet/AutoBash/main"
-INSTALL_DIR="${HOME}/.local/bin"
-SCRIPT_NAME="autobash"
+REPO_URL="https://github.com/ErwannJardillet/AutoBash"
+INSTALL_DIR="$HOME/.local/share/autobash"
+BIN_DIR="$HOME/.local/bin"
+BIN_PATH="$BIN_DIR/autobash"
 
 # ─── Couleurs ─────────────────────────────────────────────────────────────────
 G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; C='\033[0;36m'
@@ -15,7 +16,7 @@ BOLD='\033[1m'; NC='\033[0m'
 
 ok()   { echo -e "  ${G}✔${NC}  $1"; }
 warn() { echo -e "  ${Y}⚠${NC}  $1"; }
-err()  { echo -e "  ${R}✖${NC}  $1"; exit 1; }
+die()  { echo -e "  ${R}✖${NC}  $1" >&2; exit 1; }
 info() { echo -e "  ${C}ℹ${NC}  $1"; }
 
 echo ""
@@ -23,43 +24,62 @@ echo -e "${BOLD}${C}  autobash — Installation${NC}"
 echo -e "  ─────────────────────────────────────"
 echo ""
 
-# ─── Vérifier bash ────────────────────────────────────────────────────────────
-bash_version=$(bash --version | head -1 | grep -oP '\d+\.\d+' | head -1 || true)
-bash_major=${bash_version%%.*}
-if [[ -z "$bash_major" || "$bash_major" -lt 4 ]]; then
-  err "Bash 4.0+ requis (version actuelle : ${bash_version:-inconnue})"
+# ─── Prérequis ────────────────────────────────────────────────────────────────
+if ! command -v node &>/dev/null; then
+  die "Node.js est requis (v18+). Installez-le depuis https://nodejs.org"
 fi
-ok "Bash ${bash_version}"
 
-# ─── Créer le répertoire d'installation ───────────────────────────────────────
-mkdir -p "$INSTALL_DIR"
-ok "Répertoire d'installation : ${INSTALL_DIR}"
+NODE_MAJOR=$(node --version | sed 's/v\([0-9]*\).*/\1/')
+if [[ "$NODE_MAJOR" -lt 18 ]]; then
+  die "Node.js v18+ requis (version actuelle : $(node --version))"
+fi
+ok "Node.js $(node --version)"
 
-# ─── Télécharger ou copier le script ──────────────────────────────────────────
-TARGET="${INSTALL_DIR}/${SCRIPT_NAME}"
+if ! command -v npm &>/dev/null; then
+  die "npm est requis."
+fi
+ok "npm $(npm --version)"
 
-# Si on est dans le répertoire du repo (installation locale)
+if ! command -v git &>/dev/null; then
+  die "git est requis."
+fi
+
+# ─── Téléchargement ──────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || pwd)"
-if [[ -f "${SCRIPT_DIR}/autobash" ]]; then
-  cp "${SCRIPT_DIR}/autobash" "$TARGET"
-  ok "Script copié depuis ${SCRIPT_DIR}"
+
+if [[ -f "${SCRIPT_DIR}/package.json" ]]; then
+  # Installation locale depuis le dépôt
+  INSTALL_DIR="$SCRIPT_DIR"
+  ok "Installation locale depuis ${SCRIPT_DIR}"
+elif [[ -d "$INSTALL_DIR/.git" ]]; then
+  info "Mise à jour du dépôt…"
+  git -C "$INSTALL_DIR" pull --quiet
+  ok "Dépôt mis à jour"
 else
-  # Téléchargement depuis GitHub
-  info "Téléchargement depuis GitHub..."
-  if command -v curl &>/dev/null; then
-    curl -fsSL "${REPO}/autobash" -o "$TARGET"
-  elif command -v wget &>/dev/null; then
-    wget -qO "$TARGET" "${REPO}/autobash"
-  else
-    err "curl ou wget est requis pour l'installation."
-  fi
-  ok "Script téléchargé depuis GitHub"
+  info "Clonage du dépôt dans $INSTALL_DIR…"
+  git clone --quiet "$REPO_URL" "$INSTALL_DIR"
+  ok "Dépôt cloné"
 fi
 
-chmod +x "$TARGET"
-ok "Permissions configurées"
+# ─── Build ────────────────────────────────────────────────────────────────────
+info "Installation des dépendances npm…"
+npm --prefix "$INSTALL_DIR" install --silent
+ok "Dépendances installées"
 
-# ─── Vérifier que ~/.local/bin est dans le PATH ───────────────────────────────
+info "Build de l'interface…"
+npm --prefix "$INSTALL_DIR" run build --silent
+ok "Build terminé"
+
+# ─── Installation du binaire ──────────────────────────────────────────────────
+mkdir -p "$BIN_DIR"
+cat > "$BIN_PATH" << EOF
+#!/usr/bin/env bash
+exec node "${INSTALL_DIR}/dist/cli.js" "\$@"
+EOF
+chmod +x "$BIN_PATH"
+ok "Binaire installé : $BIN_PATH"
+
+# ─── PATH ─────────────────────────────────────────────────────────────────────
 shell_rc=""
 current_shell="${SHELL##*/}"
 case "$current_shell" in
@@ -69,8 +89,8 @@ case "$current_shell" in
   *)    shell_rc="$HOME/.profile" ;;
 esac
 
-if ! echo "$PATH" | grep -q "${INSTALL_DIR}"; then
-  warn "${INSTALL_DIR} n'est pas dans votre \$PATH."
+if ! echo "$PATH" | tr ':' '\n' | grep -qx "$BIN_DIR"; then
+  warn "${BIN_DIR} n'est pas dans votre \$PATH."
   echo ""
   echo -e "  Ajoutez cette ligne à ${shell_rc} :"
   echo -e "  ${BOLD}export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
